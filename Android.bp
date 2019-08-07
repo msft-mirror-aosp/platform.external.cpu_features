@@ -6,7 +6,6 @@ cc_defaults {
     host_supported: true,
     local_include_dirs: [
         "include",
-        "include/internal",
     ],
     cflags: [
         // Reserve 1024 bytes on the stack when reading from `/proc/cpuinfo`.
@@ -23,6 +22,11 @@ cc_library {
         "src/stack_line_reader.c",
         "src/string_view.c",
     ],
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
 }
 
 cc_library {
@@ -52,6 +56,7 @@ cc_library {
     defaults: [
         "cpu_features-defaults",
     ],
+    export_include_dirs: ["include"],
     whole_static_libs: [
         "libcpu_features-utils",
     ],
@@ -90,6 +95,11 @@ cc_library {
             cflags: [
                 "-Wno-unused-variable",
             ],
+        },
+    },
+    target: {
+        windows: {
+            enabled: true,
         },
     },
 }
