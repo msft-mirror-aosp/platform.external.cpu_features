@@ -6,7 +6,6 @@ cc_defaults {
     host_supported: true,
     local_include_dirs: [
         "include",
-        "include/internal",
     ],
     cflags: [
         // Reserve 1024 bytes on the stack when reading from `/proc/cpuinfo`.
@@ -23,6 +22,11 @@ cc_library {
         "src/stack_line_reader.c",
         "src/string_view.c",
     ],
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
 }
 
 cc_library {
@@ -52,6 +56,7 @@ cc_library {
     defaults: [
         "cpu_features-defaults",
     ],
+    export_include_dirs: ["include"],
     whole_static_libs: [
         "libcpu_features-utils",
     ],
@@ -92,6 +97,11 @@ cc_library {
             ],
         },
     },
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
 }
 
 cc_binary {
@@ -107,17 +117,18 @@ cc_binary {
     ],
 }
 
-
 // Tests.
 
 cc_defaults {
     name: "cpu_features-test-defaults",
+    test_suites: ["device-tests"],
     host_supported: true,
+    compile_multilib: "both",
     local_include_dirs: [
         "include",
     ],
     cflags: [
-        "-DCPU_FEATURES_TEST"
+        "-DCPU_FEATURES_TEST",
     ],
 }
 
@@ -216,7 +227,7 @@ cc_test {
     name: "cpu_features-bit_utils_test",
     defaults: ["cpu_features-test-defaults"],
     srcs: [
-        "test/bit_utils_test.cc"
+        "test/bit_utils_test.cc",
     ],
 }
 
@@ -262,74 +273,53 @@ cc_test {
     ],
 }
 
-cc_defaults {
-    name: "cpu_features-cpuinfo-test-defaults",
-    defaults: ["cpu_features-test-defaults"],
-    enabled: false,
+cc_test {
+    name: "cpu_features-cpuinfo_test",
+    defaults: [
+        "cpu_features-test-defaults",
+    ],
     static_libs: [
         "libcpu_features-all_libraries",
     ],
-}
-
-cc_test {
-    name: "cpu_features-cpuinfo_x86_test",
-    defaults: ["cpu_features-cpuinfo-test-defaults"],
     arch: {
         x86: {
-            enabled: true,
+            cflags: [
+                "-DCPU_FEATURES_MOCK_CPUID_X86",
+                "-Wno-unused-variable",
+            ],
+            srcs: [
+                "test/cpuinfo_x86_test.cc",
+                "src/cpuinfo_x86.c",
+            ],
         },
         x86_64: {
-            enabled: true,
+            cflags: [
+                "-DCPU_FEATURES_MOCK_CPUID_X86",
+                "-Wno-unused-variable",
+            ],
+            srcs: [
+                "test/cpuinfo_x86_test.cc",
+                "src/cpuinfo_x86.c",
+            ],
         },
-    },
-    target: {
-        windows: {
-            enabled: false,
-        },
-    },
-    cflags: [
-        "-DCPU_FEATURES_MOCK_CPUID_X86",
-        "-Wno-unused-variable",
-    ],
-    srcs: [
-        "test/cpuinfo_x86_test.cc",
-        "src/cpuinfo_x86.c",
-    ],
-}
-
-cc_test {
-    name: "cpu_features-cpuinfo_arm_test",
-    defaults: [
-        "cpu_features-cpuinfo-test-defaults",
-        "stack_line_reader-defaults",
-    ],
-    arch: {
         arm: {
-            enabled: true,
+            cflags: [
+                "-DSTACK_LINE_READER_BUFFER_SIZE=1024",
+            ],
+            srcs: [
+                "test/cpuinfo_arm_test.cc",
+                "src/cpuinfo_arm.c",
+            ],
         },
-    },
-    srcs: [
-        "test/cpuinfo_arm_test.cc",
-        "src/cpuinfo_arm.c",
-    ],
-}
-
-cc_test {
-    name: "cpu_features-cpuinfo_aarch64_test",
-    defaults: [
-        "cpu_features-cpuinfo-test-defaults",
-        "stack_line_reader-defaults",
-    ],
-    arch: {
         arm64: {
-            enabled: true,
+            cflags: [
+                "-DSTACK_LINE_READER_BUFFER_SIZE=1024",
+                "-Wno-gnu-designator",
+            ],
+            srcs: [
+                "test/cpuinfo_aarch64_test.cc",
+                "src/cpuinfo_aarch64.c",
+            ],
         },
     },
-    cflags: [
-        "-Wno-gnu-designator",
-    ],
-    srcs: [
-        "test/cpuinfo_aarch64_test.cc",
-        "src/cpuinfo_aarch64.c",
-    ],
 }
