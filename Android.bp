@@ -42,6 +42,7 @@ cc_defaults {
         "-DSTACK_LINE_READER_BUFFER_SIZE=1024",
         "-Wno-gnu-designator",
     ],
+    min_sdk_version: "S",
 }
 
 cc_library {
