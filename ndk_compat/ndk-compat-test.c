@@ -1,5 +1,4 @@
 #include <stdio.h>
-
 #include "cpu-features.h"
 
 int main() {

@@ -1,4 +1,4 @@
-// Copyright 2017 Google LLC
+// Copyright 2017 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "hwcaps_for_testing.h"
-
 #include <string.h>
 
+#include "hwcaps_for_testing.h"
 #include "internal/string_view.h"
 
 namespace cpu_features {

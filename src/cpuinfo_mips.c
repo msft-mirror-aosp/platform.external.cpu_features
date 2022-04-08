@@ -1,4 +1,4 @@
-// Copyright 2017 Google LLC
+// Copyright 2017 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,21 +14,23 @@
 
 #include "cpuinfo_mips.h"
 
-#include <assert.h>
-
 #include "internal/filesystem.h"
-#include "internal/hwcaps.h"
 #include "internal/stack_line_reader.h"
 #include "internal/string_view.h"
+#include "internal/unix_features_aggregator.h"
 
-// Generation of feature's getters/setters functions and kGetters, kSetters,
-// kCpuInfoFlags and kHardwareCapabilities global tables.
-#define DEFINE_TABLE_FEATURES                      \
-  FEATURE(MIPS_MSA, msa, "msa", MIPS_HWCAP_MSA, 0) \
-  FEATURE(MIPS_EVA, eva, "eva", 0, 0)              \
-  FEATURE(MIPS_R6, r6, "r6", MIPS_HWCAP_R6, 0)
-#define DEFINE_TABLE_FEATURE_TYPE MipsFeatures
-#include "define_tables.h"
+#include <assert.h>
+
+DECLARE_SETTER(MipsFeatures, msa)
+DECLARE_SETTER(MipsFeatures, eva)
+DECLARE_SETTER(MipsFeatures, r6)
+
+static const CapabilityConfig kConfigs[] = {
+  [MIPS_MSA] = {{MIPS_HWCAP_MSA, 0}, "msa", &set_msa},  //
+  [MIPS_EVA] = {{0, 0}, "eva", &set_eva},               //
+  [MIPS_R6] = {{MIPS_HWCAP_R6, 0}, "r6", &set_r6},      //
+};
+static const size_t kConfigsSize = sizeof(kConfigs) / sizeof(CapabilityConfig);
 
 static bool HandleMipsLine(const LineResult result,
                            MipsFeatures* const features) {
@@ -36,10 +38,7 @@ static bool HandleMipsLine(const LineResult result,
   // See tests for an example.
   if (CpuFeatures_StringView_GetAttributeKeyValue(result.line, &key, &value)) {
     if (CpuFeatures_StringView_IsEquals(key, str("ASEs implemented"))) {
-      for (size_t i = 0; i < MIPS_LAST_; ++i) {
-        kSetters[i](features,
-                    CpuFeatures_StringView_HasWord(value, kCpuInfoFlags[i]));
-      }
+      CpuFeatures_SetFromFlags(kConfigsSize, kConfigs, value, features);
     }
   }
   return !result.eof;
@@ -62,18 +61,17 @@ static void FillProcCpuInfoData(MipsFeatures* const features) {
 static const MipsInfo kEmptyMipsInfo;
 
 MipsInfo GetMipsInfo(void) {
+  assert(kConfigsSize == MIPS_LAST_);
+
   // capabilities are fetched from both getauxval and /proc/cpuinfo so we can
   // have some information if the executable is sandboxed (aka no access to
   // /proc/cpuinfo).
   MipsInfo info = kEmptyMipsInfo;
 
   FillProcCpuInfoData(&info.features);
-  const HardwareCapabilities hwcaps = CpuFeatures_GetHardwareCapabilities();
-  for (size_t i = 0; i < MIPS_LAST_; ++i) {
-    if (CpuFeatures_IsHwCapsSet(kHardwareCapabilities[i], hwcaps)) {
-      kSetters[i](&info.features, true);
-    }
-  }
+  CpuFeatures_OverrideFromHwCaps(kConfigsSize, kConfigs,
+                                 CpuFeatures_GetHardwareCapabilities(),
+                                 &info.features);
   return info;
 }
 
@@ -82,11 +80,21 @@ MipsInfo GetMipsInfo(void) {
 
 int GetMipsFeaturesEnumValue(const MipsFeatures* features,
                              MipsFeaturesEnum value) {
-  if (value >= MIPS_LAST_) return false;
-  return kGetters[value](features);
+  switch (value) {
+    case MIPS_MSA:
+      return features->msa;
+    case MIPS_EVA:
+      return features->eva;
+    case MIPS_R6:
+      return features->r6;
+    case MIPS_LAST_:
+      break;
+  }
+  return false;
 }
 
 const char* GetMipsFeaturesEnumName(MipsFeaturesEnum value) {
-  if (value >= MIPS_LAST_) return "unknown feature";
-  return kCpuInfoFlags[value];
+  if(value >= kConfigsSize)
+    return "unknown feature";
+  return kConfigs[value].proc_cpuinfo_flag;
 }
